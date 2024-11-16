@@ -80,8 +80,46 @@ int main(int argc, char *argv[]) {
      - strncpy함수로 tmep 버퍼를 복사할 때, argv[1]에 16바이트가 넘는 문자열을 전달하면 이들이 모두 복사되어 스택 버퍼 오버플로우가 발생하게 된다.
      - ※핵심: auth는 temp 버퍼 뒤에 존재하므로, temp 버퍼에 오버플로우를 발생시키면 auth의 값을 0이 아닌 임의의 값으로 바꿀 수 있다. 이 경우, 실제 인증 여부와는 상관없이 main함수의 if (check_auth(argv[1])) 는 항상 참이 된다.
        - 이유: C언어의 if문은 0이 아닌 모든 값을 참(true)으로 평가한다. 그래서 버퍼 오버플로우로 인해 auth값이 0이 아닌 다른 값으로 변경되면 항상 인증이 성공한 것처럼 동작하게 된다.
+
+
+# C언어의 널 바이트로 인한 데이터 유출
+  1) 과정
+    - C언어에서 문자열은 \0 (널 바이트)로 끝난다. ex) "hello" 라는 문자열은 메모리에 "h e l l o \0" 처럼 저장된다.
+    - C언어의 출력 함수 printf 등은 문자열을 출력할 때 \0을 만날 때까지 출력한다.  ex) "hello\0world" 라는 문자열을 printf로 출력할 때, hello까지만 출력한다.
+    - 버퍼 오버플로우가 발생하면 널 바이트도 덮어써질 수 있다.
+    - 이런 경우 출력 함수는 문자열이 끝나지 않았다고 판단해 계속 출력하게 된다. 결국 다른 버퍼의 데이터까지 출력된다.
+    - 이를 통해 중요한 정보가 유출될 수 있다.
+
+
+# 실행 흐름 조작
+  1) 예시 코드
+     ```
+      // Name: sbof_ret_overwrite.c
+      // Compile: gcc -o sbof_ret_overwrite sbof_ret_overwrite.c -fno-stack-protector
+      #include <stdio.h>
+      #include <unistd.h>
       
-       - 
+      void win() {
+          printf("You won!\n");
+      }
+      
+      int main(void) {
+          char buf[8];
+          printf("Overwrite return address with %p:\n", &win);
+          read(0, buf, 32);
+          return 0;
+      }
+     ```
+     - 원래 win() 함수는 출력되지 않음.
+     - main함수의 buf는 8바이트 크기의 버퍼이다.
+     - read() 는 32바이트의 입력을 받아 buf에 저장한다. 이렇게 되면 버퍼 오버플로우가 발생한다.
+     - 공격자는 이 return address를 win() 함수의 주소로 덮어쓰면, main 함수가 끝난 후 원래 반환해야 할 위치 대신 win() 함수로 이동하게 됩니다
+
+  2) 공격 방법
+     - 위 코드에서는 win() 의 주소를 출력하고, 8바이트 버퍼 buf에 32바이트 입력을 받습니다. buf 이후에는 saved RBP 값 8바이트와 반환 주소 8바이트가 있으므로, b'A' * 16 이후에 win() 주소를 이어 붙여 보내면 win() 함수를 호출하는 것이 가능합니다.
+
+
+
 
 
 
