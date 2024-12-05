@@ -120,6 +120,34 @@ int main(int argc, char *argv[]) {
 
 
 
+# C언어 함수의 스택 프레임 구조
+```
+// Name: sbof_ret_overwrite.c
+// Compile: gcc -o sbof_ret_overwrite sbof_ret_overwrite.c -fno-stack-protector
+#include <stdio.h>
+#include <unistd.h>
 
+void win() {
+    printf("You won!\n");
+}
+
+int main(void) {
+    char buf[8];
+    printf("Overwrite return address with %p:\n", &win);
+    read(0, buf, 32);
+    return 0;
+}
+```
+여기서 "buf 이후에는 saved RBP 값 8바이트와 반환 주소 8바이트가 있으므로" 라는 게 무슨 의미일까?
+  1) 스택 프레임 구조 이해하기
+     - C언어는 함수 실행 중 스택 프레임 구조를 사용한다.
+     - 함수가 호출되면 스택에 해당 함수의 지역 변수, RBP, 반환 주소 등 필요한 정보가 차례로 저장된다.
+     - ex) 위 코드에서 아래부터 차례로 buf  Saved RBP  Return Address 가 스택에 쌓이게 된다.
+
+  2) RBP란?
+     - 함수가 실행되면 현재 스택 프레임의 시작 지점
+     - 어떻게 활용되는가?
+       - 함수 실행 중에 지역 변수나 다른 데이터에 접근할 때 얼마나 떨어져 있는지를 계산한다.
+    
 
 
